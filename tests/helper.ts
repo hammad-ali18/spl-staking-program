@@ -1,7 +1,7 @@
 import * as spl from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 
-export const createUserAndReqLamports = async (provider: anchor.AnchorProvider): Promise<[anchor.web3.Keypair]> => {
+export const createUserAndReqLamports = async (provider: anchor.AnchorProvider): Promise<anchor.web3.Keypair>=> {
     const user = anchor.web3.Keypair.generate();
     let token_airdrop = await provider.connection.requestAirdrop(user.publicKey,
         10 * anchor.web3.LAMPORTS_PER_SOL);
@@ -14,10 +14,10 @@ export const createUserAndReqLamports = async (provider: anchor.AnchorProvider):
         signature: token_airdrop,
     });
 
-    return [user];
+    return user;
 
 }
-export const createATA4User = async (provider: anchor.AnchorProvider, mint: anchor.web3.PublicKey, user: anchor.web3.Keypair, decimals: number): Promise<[anchor.web3.PublicKey]> => {
+export const createATA4User = async (provider: anchor.AnchorProvider, mint: anchor.web3.PublicKey, user: anchor.web3.Keypair, decimals: number): Promise<anchor.web3.PublicKey> => {
     // Create TX to mint tokens to the User
     const txFundATA = new anchor.web3.Transaction();
     let userATA = await spl.getAssociatedTokenAddress(
@@ -43,13 +43,32 @@ export const createATA4User = async (provider: anchor.AnchorProvider, mint: anch
             mint,
             userATA,
             provider.wallet.publicKey,
-            2 * 10 ** decimals,
-            // 2000000000,
+            10 * 10 ** decimals,
+            // 10000000000,
             [],
             spl.TOKEN_PROGRAM_ID
         )
     );
 
     const txFundToken = await provider.sendAndConfirm(txFundATA, [user]);
-    return [userATA];
+    return userATA;
+}
+export const fundVault = async (provider: anchor.AnchorProvider, mint: anchor.web3.PublicKey, vault_publicKey:anchor.web3.PublicKey,amount:number, decimals: number) => {
+    // Create TX to mint tokens to the User
+    const txFundATA = new anchor.web3.Transaction();
+
+    txFundATA.add(
+        spl.createMintToInstruction(
+            mint,
+            vault_publicKey,
+            provider.wallet.publicKey,
+            amount * 10 ** decimals,
+            // 10000000000,
+            [],
+            spl.TOKEN_PROGRAM_ID
+        )
+    );
+
+ await provider.sendAndConfirm(txFundATA);
+ 
 }
