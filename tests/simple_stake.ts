@@ -4,18 +4,18 @@ import { SimpleStake } from "../target/types/simple_stake";
 import { readFileSync } from "fs";
 import * as spl from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
-import { createATA4User, createUserAndReqLamports } from "./helper";
+import { createATA4User, createUserAndReqLamports, fundVault } from "./helper";
 
 describe("simple_stake", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const idl = JSON.parse(readFileSync("target/idl/simple_stake.json", "utf-8"));
-  const programId = new PublicKey("6E1wYENN1oy4jjv4EgARLCi64AAyF4DUncksCq5j1KkP");
+  const programId = new PublicKey("3hN2cwQpZ4Ymg8FEbeEQM73Ek9W4FNNFRpxtuc2UkqU7");
   const program = new Program<SimpleStake>(idl, programId, anchor.getProvider());
   console.log("Wallet:", provider.wallet.publicKey.toString());
 
   const poolOwner = anchor.web3.Keypair.generate();
-  const mint = new PublicKey("8kiKp72ypk12c9vQmerQBzUUs8PFgmQj6QtkwXHTLY1c");
+  const mint = new PublicKey("DyQaGW8EG6wGNTUVA5uxZpqxGVm6t5Z2D1cWBa3RQ5kP");
 
   let pool_state: PublicKey;
   let stake_vault: PublicKey;
@@ -25,8 +25,9 @@ describe("simple_stake", () => {
   let staker1: anchor.web3.Keypair;
   let stakerATA1: PublicKey;
   let staker_info: PublicKey;
-
+  let decimals: number;
   before(async () => {
+
     // Derive PDAs
     [pool_state] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("init_spl_pool")],
@@ -36,20 +37,22 @@ describe("simple_stake", () => {
       [Buffer.from("stake_spl_vault"), pool_state.toBuffer()],
       programId
     );
-    console.log("poolstate, stake_vault",pool_state.toBase58(),stake_vault.toBase58());
+    console.log("poolstate, stake_vault", pool_state.toBase58(), stake_vault.toBase58());
     [reward_vault] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("reward_spl_vault"), pool_state.toBuffer()],
       programId
     );
-
+    //fund rewardVault uncomment when needed
+    // await fundVault(provider, mint, reward_vault, 3, decimals);
+    let mintInfo = await spl.getMint(provider.connection, mint);
+    decimals = mintInfo.decimals
     // Initialize accounts and ATAs
     initializer = await createUserAndReqLamports(provider);
-    initializerATA = await createATA4User(provider, mint, initializer, 9);
+    initializerATA = await createATA4User(provider, mint, initializer, decimals);
 
     staker1 = await createUserAndReqLamports(provider);
-    stakerATA1 = await createATA4User(provider, mint, staker1, 9);
+    stakerATA1 = await createATA4User(provider, mint, staker1, decimals);
 
-    // Derive staker info PDA
     [staker_info] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("staker_spl_info"), staker1.publicKey.toBuffer()],
       programId
@@ -98,6 +101,23 @@ describe("simple_stake", () => {
       })
       .signers([staker1]).rpc();
     console.log("Stake tx", tx);
+  });
+  it("Simple Claim", async () => {
+
+    let tx = await program.methods.claimSpl()
+      .accounts({
+        claimerInfo: staker_info,
+        claimerTokenAcc: stakerATA1,
+        poolState: pool_state,
+        rewardVault: reward_vault,
+        claimer: staker1.publicKey,
+        mint: mint,
+        associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId
+      })
+      .signers([staker1]).rpc();
+    console.log("Claim tx", tx);
   });
   it("Simple UnStake", async () => {
     let amountToUnStake = new anchor.BN(200000000);
