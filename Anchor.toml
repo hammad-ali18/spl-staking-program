@@ -5,14 +5,14 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-simple_stake = "4EWZ9ERDuq1tQ41XoghKgTuwvotL5p3VrzUaXgrsGfvs"
+simple_stake = "3hN2cwQpZ4Ymg8FEbeEQM73Ek9W4FNNFRpxtuc2UkqU7"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "/home/user/solana/.config/keypair.json"
+wallet = "/home/muhammad/wallet/keypair1.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
