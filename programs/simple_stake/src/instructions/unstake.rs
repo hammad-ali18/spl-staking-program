@@ -1,14 +1,10 @@
-use crate::{
-    error::ErrorCode,
-    state::{ StakerSplInfo},
-   SplPoolState,
-};
+use crate::constants::*;
+use crate::{error::ErrorCode, state::StakerSplInfo, SplPoolState};
 use anchor_lang::{prelude::*, solana_program::system_instruction, system_program};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount},
 };
-use crate::constants::*;
 
 #[derive(Accounts)]
 pub struct UnstakeSpl<'info> {
@@ -65,19 +61,40 @@ pub fn unstake_spl(ctx: Context<UnstakeSpl>, amount: u64) -> Result<()> {
     staker_info.staker_staked_amount -= amount;
     pool_state.total_spl_staked -= amount;
 
-    // Create the CPI context for the token transfer
-    let cpi_context = CpiContext::new(
-        accounts.token_program.to_account_info(),
-        token::Transfer {
-            from: stake_vault.to_account_info(),
-            to: staker_token_acc.to_account_info(),
-            authority: staker.to_account_info(),
-        },
-    );
+    let transfer_instruction = token::Transfer {
+        from: stake_vault.to_account_info(),
+        to: staker_token_acc.to_account_info(),
+        authority: pool_state.to_account_info(),
+    };
 
 
-    // Transfer the SPL tokens from the stake vault back to the staker's account
-    token::transfer(cpi_context, amount)?;
+    // Derive the pool_state authority (PDA) using the correct seeds and bump
+    // let pool_state_bind = pool_state.key();
+// Derive the PDA for the pool state using the correct seeds
+let pool_state_authority = &[SPL_POOL_STATE_SEED];
+let (pool_state_pda, pool_state_bump) = Pubkey::find_program_address(pool_state_authority, &ctx.program_id);
+
+
+require_eq!(
+    pool_state_pda,
+    pool_state.key(),
+    ErrorCode::InvalidAuthority
+);
+
+// Define the signer seeds with the bump included
+let pool_state_signer_seeds: &[&[u8]] = &[SPL_POOL_STATE_SEED, &[pool_state_bump]];
+
+// Create the CPI context for the token transfer
+let binding = [pool_state_signer_seeds];
+let cpi_context = CpiContext::new_with_signer(
+    accounts.token_program.to_account_info(),
+    transfer_instruction,
+    &binding,
+);
+
+// Transfer the SPL tokens from the stake vault back to the staker's account
+token::transfer(cpi_context, amount)?;
+
 
     Ok(())
 }
