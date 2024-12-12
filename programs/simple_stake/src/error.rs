@@ -21,7 +21,7 @@ pub enum ErrorCode {
     InsufficientFunds,
     #[msg("Tranfer Failed")]
     TransferFailed,
-
+    Overflow,
     #[msg("Unable to stake with this Token")]
     InvalidMint,
     #[msg("Unable to stake with this Token")]
@@ -38,5 +38,6 @@ pub enum ErrorCode {
     #[msg("No Rewards to claim")]
      NoRewardsToClaim,
 
-     StakingDurationEnded
+     StakingDurationEnded,
+     InvalidAuthority
 }
