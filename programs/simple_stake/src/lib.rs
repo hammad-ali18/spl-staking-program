@@ -8,7 +8,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("4EWZ9ERDuq1tQ41XoghKgTuwvotL5p3VrzUaXgrsGfvs");
+declare_id!("6E1wYENN1oy4jjv4EgARLCi64AAyF4DUncksCq5j1KkP");
 #[program]
 pub mod simple_stake {
     use super::*;
