@@ -11,11 +11,9 @@ pub struct ClaimSpl<'info> {
     pub claimer: Signer<'info>,
 
     #[account(
-        init,
-        payer = claimer,
+        mut,
         seeds=[SPL_STAKER_SEED,claimer.key().as_ref()],
         bump,
-        space = StakerSplInfo::LEN
     )]
     pub claimer_info: Account<'info, StakerSplInfo>,
     #[account(
