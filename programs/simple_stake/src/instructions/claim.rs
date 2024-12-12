@@ -35,12 +35,12 @@ pub struct ClaimSpl<'info> {
 
     #[account(
          mut,
-         seeds = [SPL_STAKE_VAULT_SEED, pool_state.key().as_ref()],
+         seeds = [SPL_REWARD_VAULT_SEED, pool_state.key().as_ref()],
          bump,
-         constraint = stake_vault.mint.key() == mint.key() @ErrorCode::InvalidMint,//Ensure that stake vault contains the same mint
-         constraint = stake_vault.owner.key() == pool_state.key() @ErrorCode::PdaIsToBeOwner
+         constraint = reward_vault.mint.key() == mint.key() @ErrorCode::InvalidMint,//Ensure that stake vault contains the same mint
+         constraint = reward_vault.owner.key() == pool_state.key() @ErrorCode::PdaIsToBeOwner
     )]
-    pub stake_vault: Account<'info, TokenAccount>,
+    pub reward_vault: Account<'info, TokenAccount>,
 
     #[account(
         constraint = pool_state.mint.key() == mint.key() @ErrorCode::InvalidMint//Enusre that this mint is same as the mint during initialize
@@ -80,23 +80,24 @@ pub fn claim_spl(ctx: Context<ClaimSpl>) -> Result<()> {
         );
     }
 
-    
     let reward = accounts
         .claimer_info
         .staker_staked_amount
-        .checked_mul(accounts.pool_state.reward_rate) 
-        .and_then(|v| v.checked_div(100)) 
+        .checked_mul(accounts.pool_state.reward_rate)
+        .and_then(|v| v.checked_div(100))
         .ok_or(ErrorCode::Overflow)?;
- 
-    msg!("{}",reward);
+
+    require_gte!(reward, 0, ErrorCode::NoRewardsToClaim);
+
+    msg!("{}", reward);
+    
     accounts.claimer_info.last_claimed_time = current_timestamp;
 
     let pool_state_authority = &[SPL_POOL_STATE_SEED];
-    let (_, pool_state_bump) =
-        Pubkey::find_program_address(pool_state_authority, &ctx.program_id);
+    let (_, pool_state_bump) = Pubkey::find_program_address(pool_state_authority, &ctx.program_id);
     //update the
     let claim_transfer_ix = token::Transfer {
-        from: accounts.stake_vault.to_account_info(),
+        from: accounts.reward_vault.to_account_info(),
         to: accounts.claimer_token_acc.to_account_info(),
         authority: accounts.pool_state.to_account_info(),
     };
